@@ -6,12 +6,10 @@ from torch.utils.data import Dataset, DataLoader, Subset
 from torch.optim import lr_scheduler
 from torch.optim.optimizer import Optimizer, required
 
-#### pakckages from totrchvison
 import torchvision
 from torchvision import datasets,transforms
 import torchvision.models as models
 
-##### python libraries
 import os
 import random
 import math
@@ -30,17 +28,12 @@ from sklearn.model_selection import ShuffleSplit
 import warnings 
 warnings.filterwarnings('ignore')
 
-
 import wandb
-
-#### Plutcurve
 
 def plotCurves(stats,results_dir=None):
     
     fig = plt.figure(figsize=(12, 6))
-    
     plt.subplot(1,1,1)
-
     plt.plot(stats['train'], label='train_loss')
     plt.plot(stats['val'], label='valid_loss')
         
@@ -48,9 +41,7 @@ def plotCurves(stats,results_dir=None):
     marker=5
         
     plt.xlabel('Epochs')
-    
     plt.ylabel('Loss')
-    
     plt.title('NLL')
 
     lgd = plt.legend(['train', 'validation'], markerscale=marker, 
@@ -91,8 +82,6 @@ def get_transform(in_size,ds,s=1,aug=True):
                                   transforms.ToTensor(),
                                   transforms.Normalize(mean_ds, std_ds)])
     else:
-        
-        print(f'\nno augmentation is used!\n')
         transform=transforms.Compose([transforms.Resize(size=(in_size,in_size)),
                                       transforms.ToTensor(),
                                       transforms.Normalize(mean_ds, std_ds)])     
@@ -135,7 +124,6 @@ def get_train_val_loader(dataset,val_size,batch_size,num_workers,seed):
         return(dataloader,_)
 
 #### Building the model
-
 class MLP(nn.Module): 
     def __init__(self,in_dim,mlp_hid_size,proj_size):
         super(MLP,self).__init__()
@@ -156,29 +144,24 @@ class network(nn.Module):
         # we get representations from avg_pooling layer
         self.encoder = torch.nn.Sequential(*list(backbone.children())[:-1])
         self.projection = MLP(in_dim= backbone.fc.in_features,mlp_hid_size=mid_dim,proj_size=out_dim) 
-
-        
+  
     def forward(self,x):
         
         embedding = self.encoder(x)
         embedding = embedding.view(embedding.size()[0],-1)
-        project = self.projection(embedding)
-        
+        project = self.projection(embedding)        
         return(project)
     
 ##### NT_Xent loss
-
 class NT_Xent(nn.Module):
     def __init__(self, temperature, device):
         super(NT_Xent, self).__init__()
         
-
         self.temperature = temperature
         self.device = device
 
         self.criterion = nn.CrossEntropyLoss(reduction="sum")
         self.similarity_f = nn.CosineSimilarity(dim=2)
-
 
     def forward(self, z_i, z_j):
         
@@ -189,23 +172,17 @@ class NT_Xent(nn.Module):
         for i in range(self.batch_size):
             self.mask[i, self.batch_size + i] = 0
             self.mask[self.batch_size + i, i] = 0
-        
-        
+            
         z_i= F.normalize(z_i, dim=1)
         z_j= F.normalize(z_j, dim=1)
         
         p1 = torch.cat((z_i, z_j), dim=0)
-        
-
         sim = self.similarity_f(p1.unsqueeze(1), p1.unsqueeze(0)) / self.temperature
-        
         
         sim_i_j = torch.diag(sim, self.batch_size)
         sim_j_i = torch.diag(sim, -self.batch_size)
         
         positive_samples = torch.cat((sim_i_j, sim_j_i), dim=0).reshape(self.batch_size * 2, 1)
-
-        
         negative_samples = sim[self.mask].reshape(self.batch_size * 2, -1)
 
         labels = torch.zeros(self.batch_size * 2).to(positive_samples.device).long()
@@ -475,8 +452,6 @@ def main(args):
     ## setting device 
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     use_cuda = torch.cuda.is_available()
-    print(f'\n use_cuda:{use_cuda}')
-    print(f'\ndevice:{device}')
     
     ## making directory to save checkpoints 
     save_dir = Path('/dhc/home/netstore-old/Baysian/3D/Self_Supervised')
@@ -505,22 +480,17 @@ def main(args):
     elif args.ds == 'imagenet10':
         path_imagenet = save_dir/'core'/'data'/'imagenette2-320'/'train'     
         dataset = datasets.ImageFolder(path_imagenet,transform=pair_aug(get_transform(args.in_size,args.ds,args.s,args.aug)))
-        
-        
+           
     elif args.ds == 'stl10':
         dataset = datasets.STL10('./data', split='unlabeled',transform=pair_aug(get_transform(args.in_size,args.ds,args.s)),\
                                  download = True)
         
-        print(f'len stl10 unlabeld:{len(dataset)}')
-        
     elif args.ds == 'tinyimagenet':
         path_tinyimagenet = save_dir/'core'/'data'/'tiny-imagenet-200'/'train'
         dataset = datasets.ImageFolder(path_tinyimagenet,transform=pair_aug(get_transform(args.in_size,args.ds,args.s)))
-        
-                
+         
     train_loader,val_loader = get_train_val_loader(dataset,val_size=args.val_size,batch_size=args.batch_size,\
                                                    num_workers=args.num_workers,seed=args.seed)
-    
     
     ## Setting parameters for cyclic learning rate schedule
     N_train = len(train_loader.dataset)
@@ -574,7 +544,7 @@ def main(args):
             
             if phase=='train':
                 #print(f'############################')
-                #print(f'# We are in training phase #')
+                #print(f'# Training phase #')
                 #print(f'############################')
                 online_network.train()
                 dataloader = train_loader
@@ -582,7 +552,7 @@ def main(args):
             else:
                 
                 #print(f'##############################')
-                #print(f'# We are in validation phase #')
+                #print(f'# Validation phase #')
                 #print(f'##############################')
                 online_network.eval()
                 dataloader= val_loader
@@ -623,20 +593,16 @@ def main(args):
                         online_network.cpu()
                     torch.save(online_network.state_dict(),os.path.join(save_dir_mcmc,f'model_{mt}.pt'))
                     mt +=1
-                    online_network.cuda()
-                            
+                    online_network.cuda()        
                     print(f'sample {mt} from {args.N_samples} was taken!')
-                    print(f'sampled epoch lr:%.7f'%(optimizer.param_groups[0]['lr']))
-            
-        
+                       
         toc = time.time()
         runtime_epoch = toc - tic
         lr_epoch = optimizer.param_groups[0]['lr']
         
         print('Epoch: %d Train_Loss: %0.4f, Val_Loss: %0.4f, time:%0.4f seconds, lr:%0.7f'%(epoch,history['train'][epoch],\
                                                                                   history['val'][epoch],
-                                                                                  runtime_epoch,lr_epoch))
-                                                                          
+                                                                                  runtime_epoch,lr_epoch))                                                                  
         ### save best model    
         if history['val'][epoch] < best_val:
             
@@ -657,14 +623,10 @@ def main(args):
     ### save markov chain samples
     if args.save_sample: 
         torch.save(sampled_epochs,save_dir /'simclr_ckpts'/'samples'/ args.ds /f'{args.optimizer}_{args.exp}_epochs.pt') 
-        print(f'save mcmc samples!')
     
     ### plot learning curve
-    print('printing lr curves')
     plotCurves(history,save_dir / 'simclr_lr_curves'/ 'pretrain' / args.ds / f'exp_{args.exp}_{args.model_type}loss.png')    
                                
-            
-
 def Train(online_network,criterion,optimizer,proj1,proj2,phase,N_train,batch_idx,cycle_batch_length,epoch):
           
     loss = criterion(proj1,proj2)
