@@ -4,7 +4,6 @@ from torch import optim
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader, Subset
 from torch.optim import lr_scheduler
-#### pakckages from totrchvison
 import torchvision
 from torchvision import datasets,transforms
 import torchvision.models as models
@@ -35,7 +34,6 @@ warnings.filterwarnings('ignore')
 
 import wandb
 
-#### Plutcurve
 
 def plotCurves(loss,acc,exp,ckt,split,i,ds,save_dir=None,opt='sghm'):
     
@@ -54,7 +52,6 @@ def plotCurves(loss,acc,exp,ckt,split,i,ds,save_dir=None,opt='sghm'):
     
     lgd = plt.legend(['train', 'validation'], markerscale=marker, 
                  prop={'size': textsize, 'weight': 'normal'}) 
-    
     
     ax = plt.gca()
     
@@ -76,7 +73,6 @@ def plotCurves(loss,acc,exp,ckt,split,i,ds,save_dir=None,opt='sghm'):
     plt.show()
 
 #####
-
 def get_accuracy(gt, pred):
     assert len(gt)==len(pred)
     right = 0
@@ -104,13 +100,10 @@ def get_transform(ds,in_size=None):
     elif ds == 'imagenet10':
         mean_ds = [0.485, 0.456, 0.406]
         std_ds = [0.229, 0.224, 0.225]
-        
-        
+            
     transform=transforms.Compose([transforms.Resize(size=(in_size,in_size)),
-                                  transforms.ToTensor()])
-                    
+                                  transforms.ToTensor()])                
     return(transform)
-
                                   
 #### Pretrain model
 class MLP(nn.Module): 
@@ -130,14 +123,12 @@ class network(nn.Module):
     def __init__(self,backbone,mid_dim,out_dim):  
         super(network,self).__init__()
         
-        ## Here we get representations from avg_pooling layer
         self.encoder = torch.nn.Sequential(*list(backbone.children())[:-1])
         self.projection = MLP(in_dim= backbone.fc.in_features,mlp_hid_size=mid_dim,proj_size=out_dim) 
                 
     def forward(self,x):
         
         embedding = self.encoder(x)
-        
         embedding = embedding.view(embedding.size()[0],-1)
         project = self.projection(embedding)
                     
@@ -167,7 +158,6 @@ class finetune_net(nn.Module):
 def update_lr(optimizer,mult):
 
     for param_group in optimizer.param_groups:
-
         param_group['lr'] *= mult
         
 
@@ -330,7 +320,6 @@ def evaluation_metrics(pr_tot,logits,gt_list,device,ig_sam=0):
     
     nll = nn.CrossEntropyLoss()(mean_logits,gt)
     
-    print('\n')
     print(f'########## Total Accuracy and NLL for {tot_ens} Ens ###########')    
     print(f'\n total nll is: {nll:0.4f}, and total accuracy is: {acc:0.4f}')    
     print(f'#############################################')
@@ -424,8 +413,6 @@ parser.add_argument('--ig_sam',type=int, default=0,
 
 parser.add_argument('--write_exp',type=bool, default=True,
                        help='if we want to write results in a csv file!')
-
-
 
 args = parser.parse_args()
 
