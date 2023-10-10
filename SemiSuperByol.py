@@ -35,8 +35,6 @@ warnings.filterwarnings('ignore')
 
 import wandb
 
-#### Plutcurve
-
 def plotCurves(loss,acc,exp,ckt,split,i,ds,save_dir=None,opt='sghm'):
     
     fig = plt.figure(figsize=(12, 6))
@@ -47,7 +45,7 @@ def plotCurves(loss,acc,exp,ckt,split,i,ds,save_dir=None,opt='sghm'):
         
     textsize = 12
     marker=5
-        
+    
     plt.xlabel('Epochs')
     plt.ylabel(f'Loss')
     plt.title(f'NLL on {split}% data')
@@ -129,8 +127,6 @@ class network(nn.Module):
         super(network,self).__init__()
         
         self.net = net
-        
-        ## Here we get representations from avg_pooling layer
         self.encoder = torch.nn.Sequential(*list(backbone.children())[:-1])
         self.projection = MLP(in_dim= backbone.fc.in_features,mlp_hid_size=mid_dim,proj_size=out_dim) 
         self.prediction = MLP(in_dim= out_dim,mlp_hid_size=mid_dim,proj_size=out_dim)
@@ -144,11 +140,8 @@ class network(nn.Module):
         
         if self.net=='target':
             return(project)
-        
-        predict = self.prediction(project)
-                    
+        predict = self.prediction(project)            
         return(predict)
-
 
 #### Building finetune model
 class finetune_net(nn.Module):
@@ -172,7 +165,6 @@ class finetune_net(nn.Module):
 def update_lr(optimizer,mult):
 
     for param_group in optimizer.param_groups:
-
         param_group['lr'] *= mult
         
 
@@ -232,15 +224,13 @@ def single_finetune(exp,model,optimizer,criterion,train_loader,val_loader,epochs
                 
             elif phase == "val":
                 metrics = {"loss_val": error,"acc_val":acc,"epoch_val":epoch}
-                   
-            
+                       
         toc = time.time()
         time_epoch = toc - tic
                 
         print('Epoch: %d Train_Loss: %0.4f, Val_Loss: %0.4f,  Train_Acc: %0.4f, Val_Acc: %0.4f , time:%0.4f seconds'%\
               (epoch,hist['train'][epoch],hist['val'][epoch],accur['train'][epoch],accur['val'][epoch],time_epoch))
-            
-            
+                
         ## saving checkpoints when val loss is minimum
         is_best = bool(hist['val'][epoch] < best_loss)
         best_loss = hist['val'][epoch] if is_best else best_loss
@@ -281,23 +271,14 @@ def inference(model,test_loader,criterion,device):
         for batch_idx,(img,lable) in enumerate(test_loader):
                 
             img = img.to(device)
-            
-            lable = lable.to(device)
-                
+            lable = lable.to(device)    
             output = model(img)
-            
             out_pr.append(F.softmax(output,dim=1).data.cpu().numpy())
-            
             logits.append(output.data.cpu().numpy())
-            
             gt_list += list(lable.data.cpu().numpy())
-            
             loss = criterion(output,lable)
-             
-            test_loss += loss.item()
-                        
+            test_loss += loss.item()            
             pred = output.argmax(1)
-        
             correct += (pred==lable).sum().item()
             
         error = test_loss / len(test_loader)        
@@ -332,11 +313,9 @@ def evaluation_metrics(pr_tot,logits,gt_list,device,ig_sam=0):
     
     nll = nn.CrossEntropyLoss()(mean_logits,gt)
     
-    print('\n')
     print(f'########## Total Accuracy and NLL for {tot_ens} Ens ###########')    
     print(f'\n total nll is:{nll:0.4f} and total accuracy is: {acc:0.4f}')    
     print(f'#############################################')
-    
     return(nll,acc)
     
 #### Fine Tunning
@@ -465,9 +444,7 @@ def semi_supervised(args):
         HPP = json.load(file)
         in_size = HPP['in_size']
 
-        
-    
-    ## loading test_set
+    # loading test_set
     if config['ds_ft']=='cifar10':                          
         testset = datasets.CIFAR10('./data',train=False,\
                                    transform=get_transform(config['ds_ft'],in_size),download=True)
@@ -487,10 +464,8 @@ def semi_supervised(args):
     elif config['ds_ft']=='tinyimagenet':
         path_tinyimagenet = save_dir/'core'/'data'/'tiny-imagenet-200'/'val'
         testset = datasets.ImageFolder(path_tinyimagenet,transform=get_transform(config['ds_ft'],in_size))
-                                            
-                                          
+                                                                                  
     test_loader = DataLoader(testset,batch_size=100,num_workers=config['num_workers'],drop_last=False,shuffle=False)
-    
     
     # defining loss function
     criterion = nn.CrossEntropyLoss().to(device)
@@ -503,7 +478,6 @@ def semi_supervised(args):
     
     n_ckts = n_ckts_tot - config['burn_in']
    
-        
     for train_split in config['exp_split']:
         
         print("\n--------------------")
@@ -517,11 +491,9 @@ def semi_supervised(args):
         with open(os.path.join(split_dir,'train_set_%s_%d_%d%%.pickle'%(config['ds_ft'],in_size,train_split)),'rb') as f:
             train_set = pickle.load(f)
 
-        
         with open(os.path.join(split_dir,'val_set_%s_%d_%d%%.pickle'%(config['ds_ft'],in_size,train_split)),'rb') as f:
             val_set = pickle.load(f) 
-    
-                                                            
+            
         train_loader=DataLoader(train_set,batch_size=config['batch_size'],num_workers=config['num_workers'],\
                                 drop_last=False,shuffle=True)
         val_loader=DataLoader(val_set,batch_size=config['batch_size'],num_workers=config['num_workers'],\
@@ -575,7 +547,6 @@ def semi_supervised(args):
                                 config['ds_ft'],last,config['opt'])
                              
                 print(f'\n making inference on test set for {i}th checkpoint!')
-            
                 ckt_inf = torch.load(os.path.join(save_dir_fine,'%s_%d%%_%s_%d_%s_model.pt'%
                                                   (config['exp'],train_split,config['ckt'],i,\
                                                    config['ckt_inf'])),map_location=device)
