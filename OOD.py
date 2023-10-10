@@ -4,12 +4,10 @@ from torch import optim
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader, Subset
 from torch.optim import lr_scheduler
-#### pakckages from totrchvison
 import torchvision
 from torchvision import datasets,transforms
 import torchvision.models as models
 
-##### python libraries
 import os, glob
 import random
 import math
@@ -69,7 +67,6 @@ class network(nn.Module):
         super(network,self).__init__()
         
         self.net = net
-     
         self.encoder = torch.nn.Sequential(*list(backbone.children())[:-1])
         self.projection = MLP(in_dim= backbone.fc.in_features,mlp_hid_size=mid_dim,proj_size=out_dim) 
         self.prediction = MLP(in_dim= out_dim,mlp_hid_size=mid_dim,proj_size=out_dim)
@@ -77,17 +74,14 @@ class network(nn.Module):
     def forward(self,x):
         
         embedding = self.encoder(x)
-        
         embedding = embedding.view(embedding.size()[0],-1)
         project = self.projection(embedding)
         
         if self.net=='target':
             return(project)
         
-        predict = self.prediction(project)
-                    
+        predict = self.prediction(project)            
         return(predict)
-
 
 ######## Building finetune model
 class finetune_net(nn.Module):
@@ -108,14 +102,9 @@ class finetune_net(nn.Module):
 
 ######## Computing uncertainties
 def Entropy(p):
-    
-    
-    H = -(p *np.log(p)).sum(axis=1)
-     
+    H = -(p *np.log(p)).sum(axis=1) 
     meanH = H.mean(axis=0)
-
     stdH = H.std(axis=0)
-    
     return(H,meanH,stdH)
 
 
@@ -123,19 +112,14 @@ def Entropy(p):
 def cdf(ent,num_cls_OOD):
     
     p = 1/num_cls_OOD
-    
     max_ent = - num_cls_OOD * p *np.log(p)
-    
     up_bound = max_ent.round(1)+0.3
-    
     unc_thr = [l.round(2) for l in list(np.arange(0.0,up_bound,0.1))]
-    
     emp_cdf = dict.fromkeys(unc_thr)
     
     for thr in unc_thr:
         
         ent_thr = ent[ent<=thr]
-        
         emp_cdf[thr] = ent_thr.sum() / ent.sum()
         
     return(emp_cdf)
@@ -163,15 +147,10 @@ def plot_pdf_entropy(ent,ood_ds,model,exp,tot_ens,file_path):
 def plot_cdf_entropy(emp_cdf,ood_ds,model,exp,tot_ens,file_path):
     
     fig = plt.figure()
-    
     plt.plot(list(emp_cdf.keys()), list(emp_cdf.values()))
-    
     plt.xlabel("Entropy")
-    
     plt.ylabel("Emperical CDF")
-    
     plt.show()
-    
     fig.savefig(os.path.join(file_path,f"{ood_ds}_{model}_{exp}_{tot_ens}_cdf.jpg"))    
     
     
@@ -179,26 +158,19 @@ def plot_cdf_entropy(emp_cdf,ood_ds,model,exp,tot_ens,file_path):
 
 def get_auroc(pr_pos, pr_neg):
     
-    
     pos = pr_pos[:].reshape((-1, 1))
     neg = pr_neg[:].reshape((-1, 1))
    
     samples = np.vstack((pos, neg))
     
-    
     labels = np.zeros(len(samples), dtype=np.int32)
     labels[:len(pos)] += 1
     
-    
-    roc_auc_correct = roc_auc_score(labels, samples)
-    
-    print(f'roc_auc_correct is:{round(roc_auc_correct*100,1)}\n')
-    
+    roc_auc_correct = roc_auc_score(labels, samples)    
     return(round(roc_auc_correct*100,1))
 
 ##############################
 
-# The main execution 
 parser = argparse.ArgumentParser(description='OOD test of Byol and BByol')
 
 parser.add_argument('--seed',type=int,default=44,
@@ -269,21 +241,16 @@ args = parser.parse_args()
 def OOD(args):
     
     save_dir = Path('/netstore-old/Baysian/3D/Self_Supervised')
-    
     save_dir_fine = save_dir / 'ckpts' / 'finetune' / args.ds_ft
-    
     result_dir = save_dir / 'results' / 'OOD'
-    
     result_dir_exp = save_dir / 'results' / f'{args.ds_ft}_{args.split}'/ f'{args.exp}_pr_{args.ds_pr}'
     
     # setting the device    
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     use_cuda = torch.cuda.is_available()
 
-    
     # defining loss function
     criterion = nn.CrossEntropyLoss().to(device)
-    
     
     backbone = models.resnet18(pretrained=False, progress=True)
     
@@ -292,10 +259,8 @@ def OOD(args):
         
         svhn = datasets.SVHN(root='./',split='test',transform=preprocess(args.ood_ds,args.in_size),download=True)
         testloader = DataLoader(dataset=svhn,batch_size=args.b_size,shuffle=False,num_workers=4,drop_last=True)
-        
         im_size = svhn[0][0].size()
-
-                    
+                
     elif args.ood_ds=='cifar100':
         
         cifar100 = datasets.CIFAR100('./data',train=False,transform=preprocess(args.ood_ds),download=True)
@@ -312,7 +277,6 @@ def OOD(args):
         testloader = DataLoader(dataset=cifar10,batch_size=args.b_size,shuffle=False,num_workers=4,drop_last=True)
                 
     tot_ens = args.num_ens - args.burn_in 
-
     
     tot_output = []
     tot_gt = []
@@ -339,8 +303,7 @@ def OOD(args):
             # load best model from fine tunned modesl dir
             ckt_inf = torch.load(os.path.join(save_dir_fine,f'{args.exp}_{args.split}%_all_{i}_best_model.pt'),\
                                  map_location=device)
-                                     
-                
+            
             model.load_state_dict(ckt_inf['model'])
                   
             if args.num_classes != args.num_cls_OOD:
@@ -355,32 +318,24 @@ def OOD(args):
         pred = mean_logits_batch.argmax(1)
         correct += (pred==lable).sum().item()
         
-        
         mean_pr_logits.append(mean_pr_logits_batch.data.cpu().numpy())
             
-       
     ce_loss /= len(testloader)
     acc = correct / len(testloader.dataset) 
     
     print(f'OOD CE:{ce_loss:0.4f}, OOD ACC:{acc:0.4f}\n')
-    
-    
     mean_pr_logits = np.concatenate(mean_pr_logits)
-    
     
     # entropy on OOD tets set 
     epistemic, mean_eps, std_eps = Entropy(mean_pr_logits)
     
-    
     np.save(os.path.join(result_dir,f'{args.ood_ds}_{args.ds_ft}_{args.model}_{args.exp}_{tot_ens}_ent.npy'),epistemic)
     tot_gt = np.array(tot_gt)
-    
     
     pr_pos = mean_pr_InD.max(axis=1)
     pr_neg = mean_pr_logits.max(axis=1)
     
     auc_roc_scr = get_auroc(pr_pos,pr_neg)
-    
     
     if args.write_exp:
         
@@ -399,7 +354,6 @@ def OOD(args):
             'mean_H':[round(mean_eps,1)],
             'std_H':[round(std_eps,1)]
         }
-        
         # ./results
         csv_path = Path(os.path.join(result_dir,'run_sweeps_test_OOD.csv'))
 
