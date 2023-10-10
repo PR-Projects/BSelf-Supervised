@@ -55,8 +55,7 @@ class MLP(nn.Module):
         self.head = nn.Sequential(nn.Linear(in_dim,mlp_hid_size),
                                  nn.BatchNorm1d(mlp_hid_size),
                                  nn.ReLU(),
-                                 nn.Linear(mlp_hid_size,proj_size))
-        
+                                 nn.Linear(mlp_hid_size,proj_size))    
     def forward(self,x):
         x= self.head(x)
         return(x)
@@ -118,7 +117,6 @@ def cdf(ent,num_cls_OOD):
     emp_cdf = dict.fromkeys(unc_thr)
     
     for thr in unc_thr:
-        
         ent_thr = ent[ent<=thr]
         emp_cdf[thr] = ent_thr.sum() / ent.sum()
         
@@ -129,17 +127,11 @@ def cdf(ent,num_cls_OOD):
 def plot_pdf_entropy(ent,ood_ds,model,exp,tot_ens,file_path):
     
     fig = plt.figure()
-    
     sns.set_theme()
-    
     sns.histplot(ent, kde=True)
-    
     plt.xlabel("Entropy")
-    
     plt.title("Density Plot")
-    
     plt.show()
-    
     fig.savefig(os.path.join(file_path,f"{ood_ds}_{model}_{exp}_{tot_ens}_pdf.jpg"))
     
     
