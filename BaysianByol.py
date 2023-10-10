@@ -6,12 +6,10 @@ from torch.utils.data import Dataset, DataLoader, Subset
 from torch.optim import lr_scheduler
 from torch.optim.optimizer import Optimizer, required
 
-#### pakckages from totrchvison
 import torchvision
 from torchvision import datasets,transforms
 import torchvision.models as models
 
-##### python libraries
 import os
 import random
 import math
@@ -31,7 +29,6 @@ import warnings
 warnings.filterwarnings('ignore')
 
 
-#### Plutcurve
 
 def plotCurves(stats,results_dir=None):
     
@@ -46,9 +43,7 @@ def plotCurves(stats,results_dir=None):
     marker=5
         
     plt.xlabel('Epochs')
-    
     plt.ylabel('Loss')
-    
     plt.title('NLL')
 
     lgd = plt.legend(['train', 'validation'], markerscale=marker, 
@@ -88,15 +83,11 @@ def get_transform(in_size,ds,s=1,aug=True):
                                   transforms.RandomGrayscale(p=0.2),
                                   transforms.ToTensor(),
                                   transforms.Normalize(mean_ds, std_ds)])
-    else:
-        
-        print(f'\n no augmentation is used!\n')
+    else: 
         transform=transforms.Compose([transforms.Resize(size=(in_size,in_size)),
                                       transforms.ToTensor(),
                                       transforms.Normalize(mean_ds, std_ds)])     
     return(transform)
-
-
 
 class pair_aug(object):
     def __init__(self,transform):
@@ -112,7 +103,6 @@ class pair_aug(object):
 def get_train_val_loader(dataset,val_size,batch_size,num_workers,seed):
     
     if val_size:
-    
         split = ShuffleSplit(n_splits=1,test_size=val_size,random_state=seed)
     
         for train_idx, val_idx in split.split(range(len(dataset))):
@@ -126,10 +116,9 @@ def get_train_val_loader(dataset,val_size,batch_size,num_workers,seed):
         train_loader = DataLoader(train_set, batch_size=batch_size,num_workers=num_workers, drop_last=True, shuffle=True)
         val_loader = DataLoader(val_set, batch_size=batch_size,num_workers=num_workers, drop_last=True, shuffle=True)
         return(train_loader,val_loader)
+    
     else:
-        
         dataloader = DataLoader(dataset, batch_size=batch_size,num_workers=num_workers, drop_last=True, shuffle=True)
-        
         return(dataloader,_)
 
 #### Building the model
@@ -152,8 +141,6 @@ class network(nn.Module):
         super(network,self).__init__()
         
         self.net = net
-        
-        ## Here we get representations from avg_pooling layer
         self.encoder = torch.nn.Sequential(*list(backbone.children())[:-1])
         self.projection = MLP(in_dim= backbone.fc.in_features,mlp_hid_size=mid_dim,proj_size=out_dim) 
         self.prediction = MLP(in_dim= out_dim,mlp_hid_size=mid_dim,proj_size=out_dim)
@@ -172,7 +159,6 @@ class network(nn.Module):
 
     
 ##### SGHMC optimizer
-
 DEFAULT_DAMPENING = 0.0
 class SGHM(Optimizer): 
 
@@ -210,8 +196,6 @@ class SGHM(Optimizer):
         super(SGHM, self).__init__(params, defaults)
         
     def step(self,closure=None):
-            
-        """a single optimization step"""
             
         loss = None
             
@@ -407,10 +391,8 @@ parser.add_argument('--N_samples',type =int, default=13,
 
 parser.add_argument('--scale',type =bool, default =False, 
                         help = 'If we want to scale the loss or not!')
-
-                        
+                       
 args = parser.parse_args() 
-
 
 def main(args):
     
@@ -453,8 +435,7 @@ def main(args):
     elif args.ds == 'imagenet10':
         path_imagenet = save_dir/'core'/'data'/'imagenette2-320'/'train'     
         dataset = datasets.ImageFolder(path_imagenet,transform=pair_aug(get_transform(args.in_size,args.ds,args.s,args.aug)))
-        
-        
+           
     elif args.ds == 'stl10':
         dataset = datasets.STL10('./data', split='unlabeled',transform=pair_aug(get_transform(args.in_size,args.ds,args.s)),\
                                  download = True)
@@ -462,8 +443,7 @@ def main(args):
     elif args.ds == 'tinyimagenet':
         path_tinyimagenet = save_dir/'core'/'data'/'tiny-imagenet-200'/'train'
         dataset = datasets.ImageFolder(path_tinyimagenet,transform=pair_aug(get_transform(args.in_size,args.ds,args.s)))
-        
-                
+                   
     train_loader,val_loader = get_train_val_loader(dataset,val_size=args.val_size,batch_size=args.batch_size,\
                                                    num_workers=args.num_workers,seed=args.seed)
     
@@ -514,7 +494,6 @@ def main(args):
     print(f'training is started')
     for epoch in range(args.num_epochs):
         
-        # time for training and val
         tic = time.time()
         
         for phase in ['train','val']:
@@ -562,12 +541,9 @@ def main(args):
                         online_network.cpu()
                     torch.save(online_network.state_dict(),os.path.join(save_dir_mcmc,f'model_{mt}.pt'))
                     mt +=1
-                    online_network.cuda()
-                            
+                    online_network.cuda()            
                     print(f'sample {mt} from {args.N_samples} was taken!')
-                    print(f'sampled epoch lr:%.7f'%(optimizer.param_groups[0]['lr']))
-            
-        
+                
         toc = time.time()
         runtime_epoch = toc - tic
         lr_epoch = optimizer.param_groups[0]['lr']
@@ -597,10 +573,7 @@ def main(args):
     if args.save_sample: 
         torch.save(sampled_epochs,save_dir / 'samples' / args.ds /f'{args.optimizer}_{args.exp}_epochs.pt')
          
-        print(f'save mcmc samples!')
-    
     ### plot learning curve
-    print('printing lr curves')
     plotCurves(history,save_dir / 'lr_curves'/ 'pretrain' / args.ds / f'exp_{args.exp}_{args.model_type}loss.png')    
                                
             
@@ -625,8 +598,7 @@ def loss_fn(online_network,target_network,img1,img2,phase):
     
         return(loss.mean())
         
-
-            
+          
 def Train(online_network,target_network,optimizer,img1,img2,phase,N_train,batch_idx,cycle_batch_length,epoch):
           
     loss = loss_fn(online_network,target_network,img1,img2,phase)
@@ -673,7 +645,6 @@ def Train(online_network,target_network,optimizer,img1,img2,phase,N_train,batch_
         optimizer.step()
         
         # Update target network
-        # update_tau(epoch)
         tau = args.base_target_ema
     
         for online_params,target_params in zip(online_network.parameters(),target_network.parameters()):
