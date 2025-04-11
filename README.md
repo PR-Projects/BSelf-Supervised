@@ -6,5 +6,7 @@ This repository provides PyTorch implimentation of the paper "A Probabilistic Ap
 
 Accepted in: Frontiers in Probabilistic Inference: Sampling Meets Learning" Workshop, ICLR 2025.
 
+![Architecture](Full_image.png)
+
 
 
